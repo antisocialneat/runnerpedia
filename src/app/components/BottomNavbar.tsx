@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Calendar, User } from "lucide-react";
+import { HomeIcon as HomeIconOutline, TrophyIcon as TrophyIconOutline, CalendarIcon as CalendarIconOutline, UserIcon as UserIconOutline } from "@heroicons/react/24/outline";
+import { HomeIcon as HomeIconSolid, TrophyIcon as TrophyIconSolid, CalendarIcon as CalendarIconSolid, UserIcon as UserIconSolid } from "@heroicons/react/24/solid";
 import clsx from "clsx";
 
 export default function BottomNavbar() {
@@ -10,24 +11,41 @@ export default function BottomNavbar() {
 
     const navItems = [
         {
-            name: "Leaderboard",
-            href: "/leaderboard",
-            icon: Trophy,
+            name: "Home",
+            href: "/",
+            icon: {
+                outline: HomeIconOutline,
+                solid: HomeIconSolid,
+            },
         },
         {
-            name: "Events",
+            name: "Leaderboard",
+            href: "/leaderboard",
+            icon: {
+                outline: TrophyIconOutline,
+                solid: TrophyIconSolid,
+            },
+        },
+        {
+            name: "Event",
             href: "/events",
-            icon: Calendar,
+            icon: {
+                outline: CalendarIconOutline,
+                solid: CalendarIconSolid,
+            },
         },
         {
             name: "Account",
             href: "/account",
-            icon: User,
+            icon: {
+                outline: UserIconOutline,
+                solid: UserIconSolid,
+            },
         },
     ];
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 h-16 flex items-center justify-around px-4 sm:px-6">
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 h-16 flex items-center justify-around px-4 sm:px-6">
             {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -37,12 +55,16 @@ export default function BottomNavbar() {
                         className={clsx(
                             "flex flex-col items-center justify-center w-full h-full",
                             isActive
-                                ? "text-blue-600 dark:text-blue-400"
-                                : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                ? "text-white-600 dark:text-white-400"
+                                : "text-gray-500 dark:text-gray-400 hover:text-white-600 dark:hover:text-white-400"
                         )}
                     >
-                        <item.icon className="w-6 h-6 mb-1" />
-                        <span className="text-xs font-medium">{item.name}</span>
+                        {isActive ? (
+                            <item.icon.solid className="w-6 h-6 mb-1" />
+                        ) : (
+                            <item.icon.outline className="w-6 h-6 mb-1" />
+                        )}
+                        <span className={`text-xs ${isActive ? 'font-bold' : 'font-medium'}`}>{item.name}</span>
                     </Link>
                 );
             })}

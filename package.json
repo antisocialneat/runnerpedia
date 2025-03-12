@@ -10,6 +10,12 @@
   },
   "dependencies": {
     "@auth/core": "^0.38.0",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-regular-svg-icons": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "@heroicons/react": "^2.2.0",
+    "@supabase/supabase-js": "^2.49.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.479.0",
     "next": "15.2.1",
