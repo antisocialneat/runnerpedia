@@ -1,12 +1,3 @@
-# Runnerpedia
-
-Aplikasi untuk komunitas pelari dengan fitur profil, leaderboard, dan event.
-
-## Setup Database
-
-Untuk menambahkan kolom `description` dan mengupdate `avg_pace` pada tabel `runners`, jalankan script SQL berikut di Supabase SQL Editor:
-
-```sql
 -- Script untuk menambahkan kolom description ke tabel runners dan mengupdate avg_pace
 -- Jalankan script ini di Supabase SQL Editor
 
@@ -48,26 +39,4 @@ WHERE avg_pace IS NULL;
 DROP FUNCTION IF EXISTS random_pace();
 
 -- Tampilkan hasil
-SELECT id, name, avg_pace, description FROM runners;
-```
-
-## Menjalankan Aplikasi
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Jalankan aplikasi dalam mode development:
-```bash
-npm run dev
-```
-
-3. Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
-
-## Fitur
-
-- Profil runner dengan statistik lari
-- Leaderboard untuk melihat peringkat pelari
-- Event untuk komunitas pelari
-- Integrasi dengan Supabase untuk database dan autentikasi
+SELECT id, name, avg_pace, description FROM runners; 

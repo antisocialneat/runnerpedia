@@ -1,163 +1,279 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import ProfilePhoto from "../../../assets/raka-profile-photo.png";
+import InstagramLogo from "../../../assets/instagram-logo.png";
+import StravaLogo from "../../../assets/logo-strava.png";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { ChevronLeftIcon, ShareIcon } from "@heroicons/react/24/outline";
+
+// Tipe data untuk runner
+type Runner = {
+    id: string;
+    name: string;
+    profile_photo: string;
+    age: string;
+    run_type: string;
+    activity_time: string;
+    total_km: number;
+    avg_pace: string | null;
+    description: string | null;
+    crew_id: string;
+    crew_name?: string;
+    crew_logo?: string;
+};
 
 export default function AccountPage() {
-    const [user] = useState({
-        name: "N'Golo Kante",
-        profilePic: "https://randomuser.me/api/portraits/men/68.jpg",
-        totalKm: 99,
-        crew: "Chelsea FC",
-        age: 31,
-        debut: "August 15, 2016",
-        height: "1.68m (5 ft 6 in)",
-        about: "The Frenchman joined from Leicester City, where he so memorably played a major part in the Foxes' Premier League title triumph."
-    });
+    // State untuk menyimpan data runner
+    const [runner, setRunner] = useState<Runner | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fungsi untuk mengambil data runner dari Supabase
+    useEffect(() => {
+        async function fetchRunnerData() {
+            try {
+                setLoading(true);
+                console.log("Mengambil data runner...");
+
+                // Mengambil data runner (untuk contoh kita ambil runner pertama)
+                const { data: runnerData, error: runnerError } = await supabase
+                    .from('runners')
+                    .select('*')
+                    .limit(1)
+                    .single();
+
+                if (runnerError) {
+                    console.error("Error mengambil data runner:", runnerError);
+                    throw runnerError;
+                }
+
+                console.log("Data runner berhasil diambil:", runnerData);
+
+                // Mengambil data crew jika crew_id ada
+                if (runnerData.crew_id) {
+                    console.log("Mengambil data crew dengan ID:", runnerData.crew_id);
+
+                    // Ubah query untuk tidak menggunakan .single() dan tangani hasilnya dengan benar
+                    const { data: crewData, error: crewError } = await supabase
+                        .from('crews')
+                        .select('name, logo_url, description')
+                        .eq('id', runnerData.crew_id);
+
+                    if (crewError) {
+                        console.error("Error mengambil data crew:", crewError);
+                        // Tidak throw error, hanya log saja
+                    } else if (crewData && crewData.length > 0) {
+                        // Menggabungkan data runner dengan data crew jika ditemukan
+                        console.log("Data crew berhasil diambil:", crewData[0]);
+                        runnerData.crew_name = crewData[0].name;
+                        runnerData.crew_logo = crewData[0].logo_url;
+                    } else {
+                        console.log("Crew tidak ditemukan");
+                    }
+                }
+
+                // Jika avg_pace belum ada, kita set default
+                if (runnerData.avg_pace === null) {
+                    runnerData.avg_pace = "5:30";
+                }
+
+                // Jika description belum ada, kita set default
+                if (!runnerData.description) {
+                    runnerData.description = "Passionate runner dedicated to improving personal records and enjoying the journey.";
+                }
+
+                setRunner(runnerData);
+            } catch (error: any) {
+                console.error("Error fetching runner data:", error);
+                setError(error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchRunnerData();
+    }, []);
+
+    // Tampilan loading
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-blue-700 to-blue-900 flex items-center justify-center">
+                <p className="text-white text-xl">Loading...</p>
+            </div>
+        );
+    }
+
+    // Tampilan error
+    if (error || !runner) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-blue-700 to-blue-900 flex items-center justify-center">
+                <p className="text-white text-xl">Error: {error || "Data tidak ditemukan"}</p>
+            </div>
+        );
+    }
+
+    // Format tanggal lahir dari umur (contoh sederhana)
+    const birthYear = new Date().getFullYear() - parseInt(runner.age);
+    const birthDate = `Mar 29,${birthYear}`;
+
+    // Tambahkan fallback untuk gambar profil
+    const profilePhoto = runner.profile_photo || "/assets/raka-profile-photo.png";
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-            <header className="bg-blue-600 p-4 relative">
-                <div className="flex items-center">
-                    <button className="text-white" onClick={() => history.back()}>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 19l-7-7 7-7"
-                            />
-                        </svg>
-                    </button>
-                    <div className="absolute right-4">
-                        <button className="text-white">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-6 w-6"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                                />
-                            </svg>
-                        </button>
+        <div className="min-h-screen bg-gray-200 relative overflow-hidden max-w-md mx-auto">
+
+            {/* Header dengan tombol back dan share */}
+            <div className="px-4 py-2 flex justify-between items-center">
+                <button className="text-black p-2 rounded-full" onClick={() => history.back()}>
+                    <ChevronLeftIcon className="h-6 w-6" />
+                </button>
+                <button className="text-black p-2 rounded-full bg-white backdrop-blur-sm shadow-md">
+                    <ShareIcon className="h-5 w-5" />
+                </button>
+            </div>
+
+            {/* Gambar profil utama di sebelah kanan */}
+            <div className="absolute right-0 top-16 w-3/5 h-96 z-0">
+                <Image
+                    src={profilePhoto}
+                    alt={runner.name}
+                    fill
+                    className="object-cover object-right-top"
+                    priority
+                />
+            </div>
+
+            {/* Konten utama dengan padding yang lebih besar */}
+            <div className="px-6 pt-4 relative z-10">
+                {/* Logo club dan bendera negara */}
+                <div className="flex items-center gap-2 mb-4 mt-8">
+                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white">
+                        <Image
+                            src={runner.crew_logo || "/assets/chelsea-logo.png"}
+                            alt={runner.crew_name || "Club"}
+                            width={56}
+                            height={56}
+                            className="object-cover"
+                        />
+                    </div>
+                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white">
+                        <Image
+                            src="/assets/france-flag.png"
+                            alt="France"
+                            width={56}
+                            height={56}
+                            className="object-cover"
+                        />
                     </div>
                 </div>
 
-                <div className="flex flex-col items-center mt-4">
-                    <div className="relative">
-                        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white">
-                            <Image
-                                src={user.profilePic}
-                                alt={user.name}
-                                fill
-                                className="object-cover"
-                            />
-                        </div>
-                    </div>
-                    <h1 className="text-2xl font-bold text-white mt-2">{user.name}</h1>
-                    <div className="flex items-center mt-1">
-                        <span className="text-red-200 text-sm mr-2">🏃‍♂️ Midfielder</span>
-                    </div>
+                {/* Nama dan posisi */}
+                <h1 className="text-6xl font-bold text-black mb-1">{runner.name}</h1>
+                <div className="flex items-center gap-2 mb-14">
+                    <span className="bg-white rounded-full px-2 py-1 text-red-500 text-xs font-semibold">{runner.run_type}</span>
+                    <span className="bg-white rounded-full px-2 py-1 text-gray-300 text-xs font-semibold">{runner.activity_time}</span>
                 </div>
-            </header>
 
-            <div className="p-4">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-3 gap-2 mb-6">
-                    <div className="bg-yellow-100 p-3 rounded-lg">
-                        <h3 className="text-xs text-yellow-800 mb-1">Age</h3>
-                        <p className="text-lg font-bold text-yellow-900">{user.age} y</p>
-                        <p className="text-xs text-yellow-700">Mar 29,1991</p>
+                <div className="grid grid-cols-3 gap-3">
+                    {/* Umur */}
+                    <div className="bg-transparent backdrop-blur-md hover:bg-yellow-500 p-3 rounded-xl shadow-md">
+                        <div className="flex items-center gap-1 mb-6">
+                            <div className="bg-white rounded-full p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-black" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xs text-black font-black">Age</h3>
+                        </div>
+                        <p className="text-xl font-bold text-black">{runner.age} y</p>
                     </div>
-                    <div className="bg-blue-100 p-3 rounded-lg">
-                        <h3 className="text-xs text-blue-800 mb-1">Debut</h3>
-                        <p className="text-sm font-bold text-blue-900">{user.debut}</p>
+                    {/* Total KM */}
+                    <div className="bg-transparent backdrop-blur-md hover:bg-yellow-500 p-3 rounded-xl shadow-md">
+                        <div className="flex items-center gap-1 mb-6">
+                            <div className="bg-white rounded-full p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-black" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xs text-black font-black">Total KM</h3>
+                        </div>
+                        <p className="text-xl font-bold text-black">{runner.total_km}</p>
                     </div>
-                    <div className="bg-blue-100 p-3 rounded-lg">
-                        <h3 className="text-xs text-blue-800 mb-1">Height</h3>
-                        <p className="text-sm font-bold text-blue-900">{user.height}</p>
+                    {/* Average Pace */}
+                    <div className="bg-transparent backdrop-blur-md hover:bg-yellow-500 p-3 rounded-xl shadow-md">
+                        <div className="flex items-center gap-1 mb-6">
+                            <div className="bg-white rounded-full p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-black" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xs text-black font-black">Avg Pace</h3>
+                        </div>
+                        <p className="text-xl font-bold text-black">{runner.avg_pace}</p>
                     </div>
                 </div>
+            </div>
 
+            <div className="px-6 pt-4 pb-20 relative z-10 bg-blue-400 rounded-t-[60px]">
                 {/* Social Links */}
-                <div className="flex justify-around mb-6">
-                    <button className="text-blue-600 flex items-center justify-center w-12 h-12 rounded-full bg-blue-100">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
-                        </svg>
+                <div className="flex justify-center gap-6 mb-8 rounded-full px-4 py-2 bg-transparent backdrop-blur-xl shadow-sm">
+                    <button className="text-blue-600 flex items-center justify-center w-6 h-6">
+                        <Image
+                            src={InstagramLogo}
+                            alt="Instagram"
+                            width={24}
+                            height={24}
+                        />
                     </button>
-                    <button className="text-pink-600 flex items-center justify-center w-12 h-12 rounded-full bg-pink-100">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                        </svg>
-                    </button>
-                    <button className="text-blue-600 flex items-center justify-center w-12 h-12 rounded-full bg-blue-100">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path d="M0 3v18h24v-18h-24zm6.623 7.929l-4.623 5.712v-9.458l4.623 3.746zm-4.141-5.929h19.035l-9.517 7.713-9.518-7.713zm5.694 7.188l3.824 3.099 3.83-3.104 5.612 6.817h-18.779l5.513-6.812zm9.208-1.264l4.616-3.741v9.348l-4.616-5.607z" />
-                        </svg>
+                    <span className="text-xs font-medium">Instagram</span>
+                    <button className="text-pink-600 flex items-center justify-center w-6 h-6">
+                        <Image
+                            src={StravaLogo}
+                            alt="Strava"
+                            width={24}
+                            height={24}
+                        />
                     </button>
                 </div>
 
                 {/* About Section */}
-                <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-2">About</h2>
-                    <p className="text-gray-700 dark:text-gray-300">{user.about}</p>
+                <div className="mb-8">
+                    <h2 className="text-xl font-semibold mb-3 text-white">About</h2>
+                    <div className="bg-blue-800/40 p-4 rounded-xl backdrop-blur-sm">
+                        <p className="text-gray-200 leading-relaxed">The Frenchman joined from Leicester City, where he so memorably played a major part in the Foxes' Premier League triumph the previous season....</p>
+                    </div>
                 </div>
 
-                {/* Stats Section */}
-                <div>
-                    <h2 className="text-xl font-semibold mb-2">Running Stats</h2>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-                        <div className="flex justify-between mb-4">
-                            <div>
-                                <h3 className="text-sm text-gray-500 dark:text-gray-400">Total Distance</h3>
-                                <p className="text-2xl font-bold">{user.totalKm} km</p>
+                {/* Latest Player News */}
+                <div className="mb-8">
+                    <h2 className="text-xl font-semibold mb-3 text-white">Latest Player News</h2>
+                    <div className="bg-blue-800/40 rounded-xl shadow-lg overflow-hidden">
+                        <div className="relative h-48">
+                            <Image
+                                src={ProfilePhoto}
+                                alt="Runner News"
+                                width={100}
+                                height={100}
+                                className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-5">
+                                <h3 className="text-xl font-bold text-white">Summer 2022 Transfers & News</h3>
                             </div>
-                            <div>
-                                <h3 className="text-sm text-gray-500 dark:text-gray-400">Crew</h3>
-                                <p className="text-2xl font-bold">{user.crew}</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-between">
-                            <div>
-                                <h3 className="text-sm text-gray-500 dark:text-gray-400">Avg. Pace</h3>
-                                <p className="text-2xl font-bold">4:35 /km</p>
-                            </div>
-                            <div>
-                                <h3 className="text-sm text-gray-500 dark:text-gray-400">Runs</h3>
-                                <p className="text-2xl font-bold">24</p>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="bg-white/20 rounded-full p-3 backdrop-blur-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
     );
 } 
