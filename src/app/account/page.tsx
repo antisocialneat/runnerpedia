@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ChevronLeftIcon, ShareIcon } from "@heroicons/react/24/outline";
 import { Poppins } from "next/font/google";
+import RunningActivityChart from "../components/ui/LineChart";
 
 // Konfigurasi font Poppins
 const poppins = Poppins({
@@ -145,7 +146,7 @@ export default function AccountPage() {
                 {/* Konten utama dengan grid layout untuk membagi menjadi dua kolom */}
                 <div className="grid grid-cols-2 gap-2 py-4 relative">
                     {/* Kolom kiri: Logo crew dan nama */}
-                    <div className="flex flex-col justify-start items-start gap-2 mb-4">
+                    <div className="flex flex-col justify-start items-start gap-2">
                         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white">
                             <Image
                                 src={runner.crew_logo || "/assets/chelsea-logo.png"}
@@ -178,7 +179,7 @@ export default function AccountPage() {
                 </div>
 
                 {/* Stats Cards - posisi absolute agar bisa berada di antara dua div */}
-                <div className="relative -mb-10">
+                <div className="py-4">
                     <div className="grid grid-cols-3 gap-3 h-[100px]">
                         {/* Umur */}
                         <div className="bg-[#cad96b] backdrop-blur-md p-3 rounded-xl shadow-md justify-between flex flex-col">
@@ -219,9 +220,16 @@ export default function AccountPage() {
                     </div>
                 </div>
 
-                <div className="pt-14 relative">
+                <div>
+                    {/* Running Activity Chart */}
+                    <div className="mb-8">
+                        <RunningActivityChart
+                            runnerId={runner.id}
+                        />
+                    </div>
+
                     {/* Social Links */}
-                    <div className="relative px-8">
+                    <div className="px-8">
                         <div className="flex justify-center items-center gap-8 mb-8 bg-[#cad96b]/40 backdrop-blur-md rounded-full py-2">
                             <div className="flex items-center gap-2">
                                 <div className="bg-white backdrop-blur-sm rounded-full p-1 flex items-center justify-center">
