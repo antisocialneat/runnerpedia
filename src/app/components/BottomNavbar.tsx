@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon as HomeIconOutline, TrophyIcon as TrophyIconOutline, CalendarIcon as CalendarIconOutline, UserIcon as UserIconOutline } from "@heroicons/react/24/outline";
-import { HomeIcon as HomeIconSolid, TrophyIcon as TrophyIconSolid, CalendarIcon as CalendarIconSolid, UserIcon as UserIconSolid } from "@heroicons/react/24/solid";
+import { HomeIcon as HomeIconOutline, TrophyIcon as TrophyIconOutline, CalendarIcon as CalendarIconOutline, UserIcon as UserIconOutline, CameraIcon as CameraIconOutline } from "@heroicons/react/24/outline";
+import { HomeIcon as HomeIconSolid, TrophyIcon as TrophyIconSolid, CalendarIcon as CalendarIconSolid, UserIcon as UserIconSolid, CameraIcon as CameraIconSolid } from "@heroicons/react/24/solid";
 import clsx from "clsx";
 
 export default function BottomNavbar() {
@@ -32,6 +32,14 @@ export default function BottomNavbar() {
             icon: {
                 outline: CalendarIconOutline,
                 solid: CalendarIconSolid,
+            },
+        },
+        {
+            name: "Strava OCR",
+            href: "/strava-ocr",
+            icon: {
+                outline: CameraIconOutline,
+                solid: CameraIconSolid,
             },
         },
         {
