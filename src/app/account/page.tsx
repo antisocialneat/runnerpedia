@@ -2,8 +2,12 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserSupabaseClient } from "@/lib/supabase-client";
 
 export default function AccountPage() {
+    const router = useRouter();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [user] = useState({
         name: "N'Golo Kante",
         profilePic: "https://randomuser.me/api/portraits/men/68.jpg",
@@ -14,6 +18,19 @@ export default function AccountPage() {
         height: "1.68m (5 ft 6 in)",
         about: "The Frenchman joined from Leicester City, where he so memorably played a major part in the Foxes' Premier League title triumph."
     });
+
+    const handleLogout = async () => {
+        try {
+            setIsLoggingOut(true);
+            const supabase = createBrowserSupabaseClient();
+            await supabase.auth.signOut();
+            router.push('/login');
+        } catch (error) {
+            console.error('Error signing out:', error);
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -156,6 +173,26 @@ export default function AccountPage() {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Logout Button - Added new section */}
+                <div className="mt-6">
+                    <button 
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+                    >
+                        {isLoggingOut ? (
+                            <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white"></div>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-5-5H3zm6 5a1 1 0 00-2 0v4.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 12.586V8z" clipRule="evenodd" />
+                                </svg>
+                                Logout
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
