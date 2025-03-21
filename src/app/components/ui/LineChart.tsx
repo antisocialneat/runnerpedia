@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { format, isThisMonth, isThisWeek, subDays, parseISO, startOfWeek, endOfWeek } from 'date-fns';
+import { useState, useEffect, useMemo } from 'react';
+import { format, isThisMonth, isThisWeek, parseISO, startOfWeek, endOfWeek, getDaysInMonth, addDays, parse, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 import {
     XAxis,
@@ -12,150 +12,58 @@ import {
     Area,
     AreaChart
 } from 'recharts';
-
-// Definisi tipe untuk aktivitas lari
-type RunningActivity = {
-    id: number;
-    activity_date: string;
-    distance_km: number;
-    run_type: string;
-    duration_minutes: number;
-    elevation_gain?: number;
-    avg_pace?: string;
-    steps?: number;
-};
+import { RunningActivity } from '@/app/actions/runningData';
 
 // Props untuk komponen
 type RunningChartProps = {
-    runnerId: string;
+    runnerId: string | number;
+    initialData?: RunningActivity[];
     className?: string;
 };
 
-export default function RunningActivityChart({ runnerId, className = '' }: RunningChartProps) {
+export default function RunningActivityChart({ runnerId, initialData = [], className = '' }: RunningChartProps) {
     // State untuk menyimpan data aktivitas
-    const [activities, setActivities] = useState<RunningActivity[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [activities, setActivities] = useState<RunningActivity[]>(initialData);
+    const [loading, setLoading] = useState(initialData.length === 0);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'week' | 'month'>('week');
     const [maxDistance, setMaxDistance] = useState(5); // Default max 5 km
-    const [selectedActivity, setSelectedActivity] = useState<RunningActivity | null>(null);
+    const [selectedActivity, setSelectedActivity] = useState<RunningActivity | null>(
+        initialData.length > 0 ? initialData[initialData.length - 1] : null
+    );
     const [dateRange, setDateRange] = useState<string>('');
+    const [summaryData, setSummaryData] = useState<{
+        totalDistance: number;
+        totalDuration: number;
+        totalElevation: number;
+    }>({ totalDistance: 0, totalDuration: 0, totalElevation: 0 });
+    const [isShowingSummary, setIsShowingSummary] = useState(true);
 
-    // Data dummy untuk simulasi
-    const dummyActivities: RunningActivity[] = [
-        {
-            id: 1,
-            activity_date: subDays(new Date(), 6).toISOString(),
-            distance_km: 3.5,
-            run_type: 'Easy Run',
-            duration_minutes: 25,
-            elevation_gain: 45,
-            avg_pace: '7:10',
-            steps: 4500,
-        },
-        {
-            id: 2,
-            activity_date: subDays(new Date(), 5).toISOString(),
-            distance_km: 5.2,
-            run_type: 'Tempo Run',
-            duration_minutes: 35,
-            elevation_gain: 78,
-            avg_pace: '6:45',
-            steps: 6700,
-        },
-        {
-            id: 3,
-            activity_date: subDays(new Date(), 3).toISOString(),
-            distance_km: 2.1,
-            run_type: 'Recovery Run',
-            duration_minutes: 15,
-            elevation_gain: 15,
-            avg_pace: '7:30',
-            steps: 2700,
-        },
-        {
-            id: 4,
-            activity_date: subDays(new Date(), 2).toISOString(),
-            distance_km: 8.4,
-            run_type: 'Long Run',
-            duration_minutes: 55,
-            elevation_gain: 120,
-            avg_pace: '6:35',
-            steps: 10800,
-        },
-        {
-            id: 5,
-            activity_date: subDays(new Date(), 1).toISOString(),
-            distance_km: 4.7,
-            run_type: 'Easy Run',
-            duration_minutes: 30,
-            elevation_gain: 65,
-            avg_pace: '6:25',
-            steps: 6000,
-        },
-        {
-            id: 6,
-            activity_date: new Date().toISOString(),
-            distance_km: 10.5,
-            run_type: 'Long Run',
-            duration_minutes: 70,
-            elevation_gain: 156,
-            avg_pace: '6:40',
-            steps: 13500,
-        },
-    ];
-
-    // Simulasi pengambilan data dari backend
+    // Fetch data dari API
     useEffect(() => {
         const fetchActivities = async () => {
+            if (initialData.length > 0) {
+                processData(initialData);
+                return;
+            }
+
             try {
                 setLoading(true);
 
-                // Dalam implementasi nyata, ini akan mengambil data dari Supabase
-                // const { data, error } = await supabase
-                //   .from('running_activities')
-                //   .select('*')
-                //   .eq('runner_id', runnerId)
-                //   .order('activity_date', { ascending: true });
+                // Fetch dari API endpoint
+                const response = await fetch(`/api/running-activities?runnerId=${runnerId}&timeRange=${filter}`);
 
-                // Simulasi delay network
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                // Gunakan data dummy
-                const data = dummyActivities;
-
-                // Filter data berdasarkan week/month
-                const filteredData = data.filter(activity => {
-                    const activityDate = parseISO(activity.activity_date);
-                    return filter === 'week'
-                        ? isThisWeek(activityDate)
-                        : isThisMonth(activityDate);
-                });
-
-                // Cari jarak maksimum untuk skala sumbu X
-                const maxDist = Math.max(...filteredData.map(a => a.distance_km));
-                // Bulatkan ke atas ke nilai 5km terdekat (5, 10, 15, dll.)
-                const roundedMax = Math.ceil(maxDist / 5) * 5;
-                setMaxDistance(roundedMax > 0 ? roundedMax : 5);
-
-                // Set aktivitas terbaru sebagai yang terpilih secara default
-                if (filteredData.length > 0) {
-                    setSelectedActivity(filteredData[filteredData.length - 1]);
-                } else {
-                    setSelectedActivity(null);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                // Set date range
-                if (filter === 'week') {
-                    const today = new Date();
-                    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-                    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-                    setDateRange(`${format(weekStart, 'MMM d', { locale: id })} - ${format(weekEnd, 'MMM d, yyyy', { locale: id })}`);
-                } else {
-                    setDateRange(format(new Date(), 'MMMM yyyy', { locale: id }));
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error.message || 'Terjadi kesalahan saat mengambil data');
                 }
 
-                setActivities(filteredData);
+                processData(result.data || []);
             } catch (err: any) {
                 console.error('Error fetching activities:', err);
                 setError(err.message);
@@ -165,38 +73,165 @@ export default function RunningActivityChart({ runnerId, className = '' }: Runni
         };
 
         fetchActivities();
-    }, [runnerId, filter]);
+    }, [runnerId, filter, initialData]);
 
-    // Data untuk grafik dengan format yang sesuai
-    const chartData = activities.map(activity => ({
-        date: format(parseISO(activity.activity_date), 'dd MMM', { locale: id }),
-        month: format(parseISO(activity.activity_date), 'MMM', { locale: id }).toUpperCase(),
-        distance: activity.distance_km,
-        runType: activity.run_type,
-        duration: activity.duration_minutes,
-        elevation: activity.elevation_gain || 0,
-        pace: activity.avg_pace || '0:00',
-        steps: activity.steps || 0,
-        originalData: activity, // Menyimpan data asli untuk digunakan saat klik
-    }));
+    // Fungsi untuk memproses data yang diterima
+    const processData = (data: RunningActivity[]) => {
+        // Cari jarak maksimum untuk skala sumbu Y
+        if (data.length > 0) {
+            const maxDist = Math.max(...data.map(a => a.distance_km));
+            // Bulatkan ke atas ke nilai 5km terdekat (5, 10, 15, dll.)
+            const roundedMax = Math.ceil(maxDist / 5) * 5;
+            setMaxDistance(roundedMax > 0 ? roundedMax : 5);
+        }
+
+        // Set date range
+        if (filter === 'week') {
+            const today = new Date();
+            const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+            const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+            setDateRange(`${format(weekStart, 'MMM d', { locale: id })} - ${format(weekEnd, 'MMM d, yyyy', { locale: id })}`);
+        } else {
+            setDateRange(format(new Date(), 'MMMM yyyy', { locale: id }));
+        }
+
+        setActivities(data);
+        calculateSummary(data);
+        setIsShowingSummary(true);
+    };
+
+    // Hitung summary data
+    const calculateSummary = (data: RunningActivity[]) => {
+        const totalDistance = data.reduce((sum, activity) => sum + activity.distance_km, 0);
+        const totalDuration = data.reduce((sum, activity) => sum + activity.duration_minutes, 0);
+        const totalElevation = data.reduce((sum, activity) => sum + (activity.elevation_gain || 0), 0);
+
+        setSummaryData({
+            totalDistance,
+            totalDuration,
+            totalElevation
+        });
+    };
+
+    // Generate chart data dengan tanggal lengkap
+    const chartData = useMemo(() => {
+        const today = new Date();
+        let dateInterval: Date[];
+
+        if (filter === 'week') {
+            const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+            const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+            dateInterval = eachDayOfInterval({ start: weekStart, end: weekEnd });
+        } else {
+            const monthStart = startOfMonth(today);
+            const monthEnd = endOfMonth(today);
+            dateInterval = eachDayOfInterval({ start: monthStart, end: monthEnd });
+        }
+
+        // Generate data awal untuk semua tanggal
+        const allDaysData = dateInterval.map(date => {
+            const dateStr = format(date, 'yyyy-MM-dd');
+            const activity = activities.find(a => a.activity_date.startsWith(dateStr));
+
+            // Untuk kedua mode, tampilkan hanya tanggal
+            const dateDisplay = format(date, 'd', { locale: id });
+
+            // Jika tidak ada aktivitas, tetap kembalikan data dengan distance 0
+            return {
+                date: dateDisplay,
+                fullDate: dateStr,
+                actualDate: date,
+                // Tambahkan nama hari untuk tooltip
+                dayName: format(date, 'EEE', { locale: id }),
+                // Tambahkan label tanggal lengkap untuk X-axis tooltip
+                fullDateLabel: format(date, 'd MMM', { locale: id }),
+                month: format(date, 'MMM', { locale: id }).toUpperCase(),
+                distance: activity ? activity.distance_km : 0,
+                // Nilai khusus untuk menampilkan dot pada chart
+                // Ini memungkinkan kita tetap menampilkan garis tapi tanpa dot untuk nilai 0
+                displayDistance: activity ? activity.distance_km : null,
+                runType: activity ? activity.run_type : null,
+                duration: activity ? activity.duration_minutes : 0,
+                elevation: activity ? (activity.elevation_gain || 0) : 0,
+                pace: activity ? (activity.avg_pace || '0:00') : '0:00',
+                steps: activity ? (activity.steps || 0) : 0,
+                originalData: activity || null,
+            };
+        });
+
+        // Jika dalam mode minggu, kembalikan data lengkap
+        if (filter === 'week') {
+            return allDaysData;
+        }
+
+        // Untuk mode bulan, optimasi titik data kosong
+        // - Selalu tampilkan titik data dengan aktivitas
+        // - Tampilkan tanggal 1 dan kelipatan 5 (1,5,10,15,20,25,30)
+        // - Tampilkan tanggal terakhir bulan
+        // - Untuk tanggal kosong yang berdekatan, tampilkan hanya 1 dari setiap 3
+        const optimizedMonthData = [];
+
+        for (let i = 0; i < allDaysData.length; i++) {
+            const item = allDaysData[i];
+            const date = item.actualDate.getDate();
+
+            // Selalu tampilkan titik dengan aktivitas, tanggal 1, kelipatan 5, atau hari terakhir
+            if (item.distance > 0 || date === 1 || date % 5 === 0 || i === allDaysData.length - 1) {
+                optimizedMonthData.push(item);
+                continue;
+            }
+
+            // Untuk tanggal kosong yang berurutan, tampilkan hanya 1 dari 3
+            // Cek 3 hari ke depan (jika tersedia) untuk melihat apakah ada aktivitas
+            const nextThreeDays = allDaysData.slice(i, i + 3);
+            const hasActivityInNextThreeDays = nextThreeDays.some(day => day.distance > 0);
+
+            if (!hasActivityInNextThreeDays && i % 3 === 0) {
+                // Jika tidak ada aktivitas dalam 3 hari ke depan dan indeks bisa dibagi 3,
+                // tampilkan titik ini sebagai representasi dari kelompok 3 hari
+                optimizedMonthData.push(item);
+            }
+        }
+
+        return optimizedMonthData;
+    }, [activities, filter]);
 
     // Handle perubahan filter
     const handleFilterChange = (newFilter: 'week' | 'month') => {
         setFilter(newFilter);
+        // Reset ke tampilan summary saat filter berubah
+        setIsShowingSummary(true);
     };
 
     // Handle klik pada dot grafik
     const handleDotClick = (data: any) => {
         if (data && data.payload) {
-            setSelectedActivity(data.payload.originalData);
+            if (data.payload.originalData) {
+                // Jika user mengklik dot dengan data aktivitas:
+                // 1. Set aktivitas yang dipilih ke data yang diklik
+                // 2. Ubah tampilan ke mode detail (bukan summary)
+                setSelectedActivity(data.payload.originalData);
+                setIsShowingSummary(false);
+            } else {
+                // Jika mengklik titik tanpa aktivitas:
+                // Kembali ke tampilan summary (total dari filter aktif)
+                setIsShowingSummary(true);
+            }
         }
+    };
+
+    // Reset ke tampilan summary saat klik area kosong
+    const handleChartClick = () => {
+        // Kembali ke tampilan summary yang menunjukkan total
+        // dalam rentang filter yang aktif (minggu/bulan)
+        setIsShowingSummary(true);
     };
 
     // Fungsi untuk memformat durasi ke format jam:menit:detik
     const formatDuration = (minutes: number) => {
         const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        const secs = Math.floor(Math.random() * 60); // Simulasi detik
+        const mins = Math.floor(minutes % 60);
+        const secs = Math.floor((minutes % 1) * 60);
 
         return `${hours > 0 ? `${hours}j ` : ''}${mins}m ${secs}s`;
     };
@@ -207,8 +242,12 @@ export default function RunningActivityChart({ runnerId, className = '' }: Runni
             const data = payload[0].payload;
             return (
                 <div className="bg-black/80 p-2 rounded border border-[#333] text-xs">
-                    <p className="text-white font-medium">{data.date}</p>
-                    <p className="text-[#cad96b]">{data.distance} km - {data.runType}</p>
+                    <p className="text-white font-medium">{data.dayName}, {data.fullDateLabel}</p>
+                    {data.distance > 0 ? (
+                        <p className="text-[#cad96b]">{data.distance} km - {data.runType}</p>
+                    ) : (
+                        <p className="text-gray-400">Tidak ada aktivitas</p>
+                    )}
                 </div>
             );
         }
@@ -242,29 +281,56 @@ export default function RunningActivityChart({ runnerId, className = '' }: Runni
             {/* Rangkuman & Rentang Tanggal */}
             <div className="mb-4">
                 <h2 className="text-2xl font-bold text-white">Running Activity Chart</h2>
+                <p className="text-gray-400 text-sm">{dateRange}</p>
             </div>
 
-            {/* Statistik Utama */}
-            {selectedActivity && (
-                <div className="grid grid-cols-3 mb-6">
-                    <div>
-                        <p className="text-gray-400 text-sm">Distance</p>
-                        <p className="text-white text-xl font-bold">{selectedActivity.distance_km.toFixed(2)} km</p>
-                    </div>
-                    <div>
-                        <p className="text-gray-400 text-sm">Time</p>
-                        <p className="text-white text-xl font-bold">{formatDuration(selectedActivity.duration_minutes)}</p>
-                    </div>
-                    <div>
-                        <p className="text-gray-400 text-sm">Elevation Gain</p>
-                        <p className="text-white text-xl font-bold">{selectedActivity.elevation_gain} m</p>
-                    </div>
+            {/* 
+                Statistik Utama:
+                - Mode Summary: Menampilkan total dari semua aktivitas dalam rentang filter (minggu/bulan)
+                - Mode Detail: Menampilkan data dari aktivitas spesifik yang diklik user
+            */}
+            <div className="grid grid-cols-3 mb-6">
+                {/* Distance - Total atau Individual */}
+                <div>
+                    <p className="text-gray-400 text-sm">Distance</p>
+                    <p className="text-white text-xl font-bold">
+                        {isShowingSummary
+                            ? `${summaryData.totalDistance.toFixed(2)} km` // Total jarak dari semua aktivitas dalam filter
+                            : selectedActivity
+                                ? `${selectedActivity.distance_km.toFixed(2)} km` // Jarak dari aktivitas yang dipilih
+                                : '0.00 km'
+                        }
+                    </p>
                 </div>
-            )}
+                {/* Time - Total atau Individual */}
+                <div>
+                    <p className="text-gray-400 text-sm">Time</p>
+                    <p className="text-white text-xl font-bold">
+                        {isShowingSummary
+                            ? formatDuration(summaryData.totalDuration) // Total durasi dari semua aktivitas dalam filter
+                            : selectedActivity
+                                ? formatDuration(selectedActivity.duration_minutes) // Durasi dari aktivitas yang dipilih
+                                : '0m 0s'
+                        }
+                    </p>
+                </div>
+                {/* Elevation Gain - Total atau Individual */}
+                <div>
+                    <p className="text-gray-400 text-sm">Elevation Gain</p>
+                    <p className="text-white text-xl font-bold">
+                        {isShowingSummary
+                            ? `${summaryData.totalElevation} m` // Total elevasi dari semua aktivitas dalam filter
+                            : selectedActivity
+                                ? `${selectedActivity.elevation_gain} m` // Elevasi dari aktivitas yang dipilih
+                                : '0 m'
+                        }
+                    </p>
+                </div>
+            </div>
 
             {chartData.length > 0 ? (
                 <>
-                    <div className="h-80 relative">
+                    <div className="h-80 relative" onClick={handleChartClick}>
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart
                                 data={chartData}
@@ -287,14 +353,16 @@ export default function RunningActivityChart({ runnerId, className = '' }: Runni
                                 />
                                 {/* Month labels at the bottom */}
                                 <XAxis
-                                    dataKey="month"
+                                    dataKey="date"
                                     stroke="#fff"
-                                    tick={{ fill: '#fff', fontSize: 16 }}
+                                    tick={{ fill: '#fff', fontSize: 12 }}
                                     tickLine={false}
                                     axisLine={{ stroke: '#444', strokeWidth: 4 }}
-                                    interval={0}
+                                    interval={filter === 'week' ? 0 : 'equidistantPreserveStart'}
                                     orientation="bottom"
                                     padding={{ left: 10, right: 10 }}
+                                    minTickGap={filter === 'week' ? 5 : 20}
+                                    height={40}
                                 />
                                 {/* Distance units on the right */}
                                 <YAxis
@@ -330,6 +398,7 @@ export default function RunningActivityChart({ runnerId, className = '' }: Runni
                                         stroke: '#000',
                                         strokeWidth: 1
                                     }}
+                                    connectNulls
                                 />
                             </AreaChart>
                         </ResponsiveContainer>

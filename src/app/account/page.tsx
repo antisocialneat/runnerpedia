@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ChevronLeftIcon, ShareIcon } from "@heroicons/react/24/outline";
 import { Poppins } from "next/font/google";
-import RunningActivityChart from "../components/ui/LineChart";
+import RunningActivityChartWrapper from "@/app/components/RunningActivityChartWrapper";
 
 // Konfigurasi font Poppins
 const poppins = Poppins({
@@ -223,9 +223,7 @@ export default function AccountPage() {
                 <div>
                     {/* Running Activity Chart */}
                     <div className="mb-8">
-                        <RunningActivityChart
-                            runnerId={runner.id}
-                        />
+                        <RunningActivityChartWrapper runnerId={parseInt(runner.id, 10)} />
                     </div>
 
                     {/* Social Links */}
